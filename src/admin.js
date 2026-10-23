@@ -1,13 +1,13 @@
-import { login, logout, getUser, handleAuthCallback, acceptInvite, updateUser, requestPasswordRecovery, signup } from '@netlify/identity';
+import { logout, getUser, handleAuthCallback, acceptInvite, updateUser } from '@netlify/identity';
+import { sendSignInEmail } from './sign-in-email.js';
 
 const $ = id => document.getElementById(id);
-let inviteToken;
 let savedVisibility = false;
 let saving = false;
 const message = text => { $('status').textContent = text; };
 
 function hidePanels() {
-  for (const id of ['login-panel', 'password-panel', 'admin-panel', 'signout']) $(id).hidden = true;
+  for (const id of ['login-panel', 'admin-panel', 'signout']) $(id).hidden = true;
 }
 
 async function adminRequest(path, options = {}) {
@@ -49,61 +49,26 @@ async function showSession() {
 
 $('login-form').addEventListener('submit', async event => {
   event.preventDefault();
-  const button = event.submitter;
+  const email = $('email').value.trim().toLowerCase();
+  if (email !== 'isb@alicheikh.tn') {
+    message('Use the owner email isb@alicheikh.tn to access admin controls.');
+    return;
+  }
+  const button = $('send-link');
+  if (button.disabled) return;
   button.disabled = true;
-  message('Signing in…');
+  message('Sending your sign-in email…');
   try {
-    await login($('email').value.trim(), $('password').value);
-    $('password').value = '';
-    await showSession();
-  } catch { message('Unable to open admin controls. Use your owner email and password, and confirm your email first.'); }
-  finally { button.disabled = false; }
-});
-
-$('create-account').addEventListener('click', async () => {
-  if (!$('login-form').reportValidity()) return;
-  if ($('password').value.length < 10) return message('Choose a password with at least 10 characters.');
-  $('create-account').disabled = true;
-  message('Creating your private account…');
-  try {
-    const user = await signup($('email').value.trim(), $('password').value);
-    $('password').value = '';
-    if (user.confirmedAt) await showSession();
-    else message('Check your email and click the confirmation link, then sign in here.');
+    await sendSignInEmail(email);
+    button.textContent = 'Send another link';
+    message('Check your inbox and spam folder. Click “Reset password” in the Netlify email to sign in; you do not need to choose a password. Use the newest email if you request another link.');
   } catch (error) {
-    message(error.status === 403
-      ? 'Account creation is disabled in Identity. Enable Open registration in the project Identity settings, then try again. Admin access remains restricted to your verified email.'
-      : 'Could not create the account. If you already have one, use Sign in or Reset password.');
-  } finally { $('create-account').disabled = false; }
-});
-
-$('forgot').addEventListener('click', async () => {
-  if (!$('email').reportValidity()) return;
-  $('forgot').disabled = true;
-  try {
-    await requestPasswordRecovery($('email').value.trim());
-    message('If this account exists, check your email for a password reset link.');
-  } catch { message('Could not request a password reset. Please try again.'); }
-  finally { $('forgot').disabled = false; }
-});
-
-$('password-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  const password = $('new-password').value;
-  if (password !== $('confirm-password').value) return message('The passwords do not match.');
-  const button = event.submitter;
-  button.disabled = true;
-  try {
-    if (inviteToken) {
-      await acceptInvite(inviteToken, password);
-      inviteToken = undefined;
-    } else {
-      await updateUser({ password });
-    }
-    $('password-form').reset();
-    await showSession();
-  } catch { message('Could not finish account setup. The link may have expired. Request a new password reset link.'); }
-  finally { button.disabled = false; }
+    message(error.status === 429
+      ? 'Please wait a minute before requesting another email.'
+      : error.status === 400 || error.status === 422
+        ? 'Check your email address and try again.'
+        : 'Could not confirm the email request. If a Netlify reset-password email arrived, open its link to sign in. Otherwise, wait a minute and try again.');
+  } finally { button.disabled = false; }
 });
 
 $('settings-form').addEventListener('submit', async event => {
@@ -163,18 +128,18 @@ async function init() {
   try {
     const callback = await handleAuthCallback();
     if (callback) history.replaceState(null, '', '/admin.html');
-    if (callback?.type === 'invite' || callback?.type === 'recovery') {
-      hidePanels();
-      inviteToken = callback.type === 'invite' ? callback.token : undefined;
-      $('password-panel').hidden = false;
-      $('password-heading').textContent = inviteToken ? 'Accept your admin invitation' : 'Reset your password';
-      message('Choose a password to continue.');
-      return;
+    // Identity recovery links authenticate the mailbox owner. Complete recovery
+    // with an unremembered random password so no password form is needed.
+    if (callback?.type === 'invite') {
+      await acceptInvite(callback.token, crypto.randomUUID() + crypto.randomUUID());
+    } else if (callback?.type === 'recovery') {
+      await updateUser({ password: crypto.randomUUID() + crypto.randomUUID() });
     }
     await showSession();
   } catch (error) {
     history.replaceState(null, '', '/admin.html');
-    message(error.message || 'Could not load admin controls. Please reload and try again.');
+    hidePanels();
+    message('Could not finish signing in. The email link may have expired or already been used. Request a new link below.');
     $('login-panel').hidden = false;
   }
 }

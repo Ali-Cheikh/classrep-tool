@@ -15,7 +15,7 @@
     "typescript": "^7.0.2"
   },
   "scripts": {
-    "test": "node --no-warnings --experimental-loader ./tests/loader.mjs --test tests/admin.test.mjs",
+    "test": "node --no-warnings --experimental-loader ./tests/loader.mjs --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit --module nodenext --moduleResolution nodenext --target es2022 --skipLibCheck netlify/functions/*.mts db/*.ts lib/*.ts drizzle.config.ts"
   }
 }
