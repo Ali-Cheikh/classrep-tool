@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Midterm Schedule Vote</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mut:#6b6a66;--ln:#e2e0d9;--ok:#2f7d4f;--no:#b6402f;--ac:#2b4c7e}
+@media (prefers-color-scheme:dark){:root{--bg:#15161a;--card:#1f2127;--tx:#ececea;--mut:#9a9a95;--ln:#33363e;--ok:#5cc08a;--no:#e87c6b;--ac:#8fb0e6;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:0 0 4px}
+p.sub{color:var(--mut);margin:0 0 18px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:16px;margin-bottom:16px}
+.card h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+ol{margin:0;padding-left:22px}li{padding:6px 0;border-bottom:1px solid var(--ln)}li:last-child{border:0}
+label.f{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+input[type=text],input[type=email],textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--ln);background:var(--bg);color:var(--tx)}
+textarea{min-height:70px;resize:vertical}
+.opts{display:flex;gap:10px}.opts label{flex:1}
+.opts input{position:absolute;opacity:0}
+.opts span{display:block;text-align:center;font-weight:600;padding:14px;border-radius:12px;border:2px solid var(--ln);cursor:pointer}
+#yes:checked+span{background:var(--ok);border-color:var(--ok);color:#fff}
+#no:checked+span{background:var(--no);border-color:var(--no);color:#fff}
+.opts input:focus-visible+span{outline:2px solid var(--ac)}
+button{margin-top:14px;width:100%;font:inherit;font-weight:600;padding:14px;border-radius:12px;border:0;background:var(--ac);color:var(--bg);cursor:pointer}
+button:disabled{opacity:.5}
+.note{font-size:13px;color:var(--mut);margin-top:8px}
+.row{display:flex;justify-content:space-between;font-size:14px}
+.bar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--ln);margin:8px 0}
+.bar i{display:block;height:100%;transition:width .4s}
+.cm{border-top:1px solid var(--ln);padding:8px 0;font-size:14px}.cm b{color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+<h1>Midterm Schedule Vote</h1>
+<p class="sub">Class delegate poll. One vote per email. Voting again with the same email updates your vote.</p>
+
+<div class="card">
+<h2>Proposed midterm subjects</h2>
+<ol>
+<li>Financial Accounting I LAB</li>
+<li>Introduction to Law &amp; Financial Mathematics</li>
+<li>Microeconomics &amp; Professional French</li>
+<li>Mathematics &amp; Digital Skills</li>
+<li>Principles of Management</li>
+</ol>
+</div>
+
+<form class="card" id="f">
+<h2>Do you approve this schedule?</h2>
+<div class="opts">
+<label><input type="radio" name="vote" id="yes" value="Approve" required><span>&#10003; Approve</span></label>
+<label><input type="radio" name="vote" id="no" value="Disapprove"><span>&#10007; Disapprove</span></label>
+</div>
+<label class="f" for="name">Full name</label>
+<input type="text" id="name" required autocomplete="name">
+<label class="f" for="em">Email</label>
+<input type="email" id="em" required autocomplete="email">
+<label class="f" for="cm">Comment (optional)</label>
+<textarea id="cm" maxlength="300" placeholder="e.g. which exam is a problem"></textarea>
+<button type="submit" id="b">Submit vote</button>
+<div class="note" id="msg"></div>
+</form>
+
+<div class="card">
+<h2>Live results</h2>
+<div class="row"><span id="ry">Approve: 0</span><span id="rn">Disapprove: 0</span></div>
+<div class="bar"><i id="by" style="background:var(--ok);width:0"></i><i id="bn" style="background:var(--no);width:0"></i></div>
+<div class="note" id="tot">0 votes</div>
+<div id="cms"></div>
+</div>
+</main>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+function show(d){
+ var a=d.approve,n=d.disapprove,t=a+n;
+ $('ry').textContent='Approve: '+a+(t?' ('+Math.round(a/t*100)+'%)':'');
+ $('rn').textContent='Disapprove: '+n+(t?' ('+Math.round(n/t*100)+'%)':'');
+ $('by').style.width=t?(a/t*100)+'%':'0';
+ $('bn').style.width=t?(n/t*100)+'%':'0';
+ $('tot').textContent=t+(t===1?' vote':' votes');
+ var box=$('cms');box.textContent='';
+ d.comments.forEach(function(c){var e=document.createElement('div');e.className='cm';var b=document.createElement('b');b.textContent=c.vote+': ';e.appendChild(b);e.appendChild(document.createTextNode(c.comment));box.appendChild(e)});
+}
+function load(){fetch('/api/vote').then(function(r){return r.json()}).then(show).catch(function(){})}
+load();setInterval(load,8000);
+$('f').addEventListener('submit',function(e){
+ e.preventDefault();var b=$('b'),m=$('msg');b.disabled=true;m.textContent='Sending...';
+ var v=document.querySelector('input[name=vote]:checked');
+ fetch('/api/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vote:v&&v.value,name:$('name').value,email:$('em').value,comment:$('cm').value})})
+ .then(function(r){if(!r.ok)throw 0;m.textContent='Vote recorded. Thank you!';load()})
+ .catch(function(){m.textContent='Could not send. Check your details and try again.'})
+ .then(function(){b.disabled=false});
+});
+})();
+</script>
+</body>
+</html>
