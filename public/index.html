@@ -56,24 +56,31 @@ button:disabled{opacity:.5}
 <label><input type="radio" name="vote" id="no" value="Disapprove"><span>&#10007; Disapprove</span></label>
 </div>
 <label class="f" for="name">Full name</label>
-<input type="text" id="name" required autocomplete="name">
+<input type="text" id="name" maxlength="150" required autocomplete="name">
 <label class="f" for="em">Email</label>
-<input type="email" id="em" required autocomplete="email">
+<input type="email" id="em" maxlength="254" required autocomplete="email">
 <label class="f" for="cm">Comment (optional)</label>
+<p class="note">Comments are saved for the admin, who can choose to display them publicly.</p>
 <textarea id="cm" maxlength="300" placeholder="e.g. which exam is a problem"></textarea>
 <button type="submit" id="b">Submit vote</button>
-<div class="note" id="msg"></div>
+<div class="note" id="msg" role="status"></div>
 </form>
 
 <div class="card">
 <h2>Live results</h2>
 <div class="row"><span id="ry">Approve: 0</span><span id="rn">Disapprove: 0</span></div>
 <div class="bar"><i id="by" style="background:var(--ok);width:0"></i><i id="bn" style="background:var(--no);width:0"></i></div>
-<div class="note" id="tot">0 votes</div>
+<div class="note" id="tot" role="status">Loading results...</div>
+<p class="note" id="comment-privacy">Comments are visible only to the admin unless public comments are enabled.</p>
 <div id="cms"></div>
 </div>
+<p class="note"><a href="/admin.html">Admin sign in</a></p>
 </main>
 <script>
+// Identity emails return to the site root. Keep callback fragments out of requests.
+if (/(?:^|[&#])(invite_token|recovery_token|confirmation_token)=/.test(location.hash)) {
+ location.replace('/admin.html' + location.hash);
+}
 (function(){
 var $=function(i){return document.getElementById(i)};
 function show(d){
@@ -84,16 +91,18 @@ function show(d){
  $('bn').style.width=t?(n/t*100)+'%':'0';
  $('tot').textContent=t+(t===1?' vote':' votes');
  var box=$('cms');box.textContent='';
+ $('comment-privacy').textContent=d.commentsPublic?'Comments are public. Names and emails stay private.':'Comments are visible only to the admin.';
  d.comments.forEach(function(c){var e=document.createElement('div');e.className='cm';var b=document.createElement('b');b.textContent=c.vote+': ';e.appendChild(b);e.appendChild(document.createTextNode(c.comment));box.appendChild(e)});
 }
-function load(){fetch('/api/vote').then(function(r){return r.json()}).then(show).catch(function(){})}
+function load(){return fetch('/api/vote',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error();return r.json()}).then(show).catch(function(){$('cms').textContent='';$('comment-privacy').textContent='Comment visibility unavailable.';$('tot').textContent='Results unavailable. Retrying shortly.'})}
 load();setInterval(load,8000);
 $('f').addEventListener('submit',function(e){
  e.preventDefault();var b=$('b'),m=$('msg');b.disabled=true;m.textContent='Sending...';
  var v=document.querySelector('input[name=vote]:checked');
  fetch('/api/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({vote:v&&v.value,name:$('name').value,email:$('em').value,comment:$('cm').value})})
- .then(function(r){if(!r.ok)throw 0;m.textContent='Vote recorded. Thank you!';load()})
- .catch(function(){m.textContent='Could not send. Check your details and try again.'})
+ .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Could not send. Please try again.');return d})})
+ .then(function(){m.textContent='Vote recorded. Thank you!';load()})
+ .catch(function(error){m.textContent=error.message||'Could not send. Please try again.'})
  .then(function(){b.disabled=false});
 });
 })();

@@ -2,5 +2,20 @@
   "name": "midterm-vote",
   "private": true,
   "type": "module",
-  "dependencies": { "@netlify/blobs": "^8.1.0" }
+  "dependencies": {
+    "@netlify/database": "^2.0.1",
+    "@netlify/functions": "^6.0.3",
+    "@netlify/identity": "^2.0.0",
+    "drizzle-orm": "^1.0.0-beta.22"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "drizzle-kit": "^1.0.0-beta.22",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "test": "node --no-warnings --experimental-loader ./tests/loader.mjs --test tests/admin.test.mjs",
+    "typecheck": "tsc --noEmit --module nodenext --moduleResolution nodenext --target es2022 --skipLibCheck netlify/functions/*.mts db/*.ts lib/*.ts drizzle.config.ts"
+  }
 }

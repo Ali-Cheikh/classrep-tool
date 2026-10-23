@@ -1,3 +1,10 @@
 [build]
-  publish = "."
+  command = "node scripts/prepare-public.mjs"
+  publish = "public"
   functions = "netlify/functions"
+
+[[headers]]
+  for = "/admin.html"
+  [headers.values]
+    Cache-Control = "private, no-store"
+    X-Robots-Tag = "noindex, nofollow"
