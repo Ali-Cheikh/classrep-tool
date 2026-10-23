@@ -13,8 +13,10 @@ function json(data: unknown, status = 200) {
 export default async (req: Request) => {
   const user = await getUser();
   if (!user) return json({ error: 'Sign in to your admin account.' }, 401);
-  // Only server-controlled app metadata grants access. User metadata is never trusted.
-  if (!user.roles?.includes('admin')) return json({ error: 'This account does not have admin access.' }, 403);
+  // Identity verifies the session; require verified ownership of the owner's mailbox.
+  if (user.email?.trim().toLowerCase() !== 'isb@alicheikh.tn' || !user.confirmedAt) {
+    return json({ error: 'Sign in with the verified owner email to access admin controls.' }, 403);
+  }
 
   const path = new URL(req.url).pathname;
   const exportCsv = path === '/api/admin/export';

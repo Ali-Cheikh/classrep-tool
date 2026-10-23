@@ -1,4 +1,4 @@
-import { login, logout, getUser, handleAuthCallback, acceptInvite, updateUser, requestPasswordRecovery } from '@netlify/identity';
+import { login, logout, getUser, handleAuthCallback, acceptInvite, updateUser, requestPasswordRecovery, signup } from '@netlify/identity';
 
 const $ = id => document.getElementById(id);
 let inviteToken;
@@ -56,8 +56,25 @@ $('login-form').addEventListener('submit', async event => {
     await login($('email').value.trim(), $('password').value);
     $('password').value = '';
     await showSession();
-  } catch { message('Unable to open admin controls. Check your credentials and that your account has the admin role.'); }
+  } catch { message('Unable to open admin controls. Use your owner email and password, and confirm your email first.'); }
   finally { button.disabled = false; }
+});
+
+$('create-account').addEventListener('click', async () => {
+  if (!$('login-form').reportValidity()) return;
+  if ($('password').value.length < 10) return message('Choose a password with at least 10 characters.');
+  $('create-account').disabled = true;
+  message('Creating your private account…');
+  try {
+    const user = await signup($('email').value.trim(), $('password').value);
+    $('password').value = '';
+    if (user.confirmedAt) await showSession();
+    else message('Check your email and click the confirmation link, then sign in here.');
+  } catch (error) {
+    message(error.status === 403
+      ? 'Account creation is disabled in Identity. Enable Open registration in the project Identity settings, then try again. Admin access remains restricted to your verified email.'
+      : 'Could not create the account. If you already have one, use Sign in or Reset password.');
+  } finally { $('create-account').disabled = false; }
 });
 
 $('forgot').addEventListener('click', async () => {
@@ -85,7 +102,7 @@ $('password-form').addEventListener('submit', async event => {
     }
     $('password-form').reset();
     await showSession();
-  } catch { message('Could not finish account setup. The link may have expired, or your admin role may still need to be assigned in Netlify.'); }
+  } catch { message('Could not finish account setup. The link may have expired. Request a new password reset link.'); }
   finally { button.disabled = false; }
 });
 
