@@ -11,10 +11,10 @@ const request = (path, method = 'GET', body, origin = 'https://poll.example') =>
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
 const fixture = { name: 'Student', email: 'student@example.test', vote: 'Approve', comment: 'Private comment', updatedAt: new Date('2026-10-23T00:00:00Z') };
-const signIn = () => { state.user = { roles: ['admin'] }; };
+const signIn = () => { state.user = { email: 'isb@alicheikh.tn', confirmedAt: '2026-10-23T00:00:00Z', roles: [] }; };
 
-test('anonymous and non-admin accounts cannot read settings, export, or change privacy', async () => {
-  for (const user of [null, { roles: [] }, { roles: [], userMetadata: { roles: ['admin'] } }]) {
+test('anonymous, unverified, and other accounts cannot access admin endpoints', async () => {
+  for (const user of [null, { roles: [] }, { email: 'other@example.test', confirmedAt: '2026-10-23', roles: ['admin'] }, { email: 'isb@alicheikh.tn', roles: ['admin'] }, { email: 'other@example.test', userMetadata: { email: 'isb@alicheikh.tn', confirmedAt: '2026-10-23', roles: ['admin'] } }]) {
     state.user = user;
     for (const [path, method, body] of [
       ['/api/admin/settings', 'GET'], ['/api/admin/export', 'GET'],
